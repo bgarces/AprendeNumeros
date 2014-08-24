@@ -1,17 +1,22 @@
 
+import java.applet.AudioClip;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import sun.applet.AppletAudioClip;
+import sun.audio.*;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -46,8 +51,6 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         entry.setSample(sample);
         //this.add(sample);
          
-        
-        DefaultListModel letterListModel = new DefaultListModel();
         
     }
     
@@ -327,11 +330,14 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         JOptionPane.showMessageDialog(this,
                                       "That letter is already defined, delete it first!","Error",
                                       JOptionPane.ERROR_MESSAGE);
+        
         return;
       }
 
-      if ( str.compareTo(sampleData)>0 ) {
+      if ( str.compareTo(sampleData)>1 ) {
         letterListModel.add(i,sampleData);
+        entry.clear();
+        sample.repaint();
         return;
       }
     }
@@ -373,6 +379,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
                                     JOptionPane.ERROR_MESSAGE);
     }
     jTextField1.setText("");
+        
     
     }//GEN-LAST:event_jButton1ActionPerformed
 
@@ -401,6 +408,69 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
     int best = net.winner ( input , normfac , synth ) ;
     char map[] = mapNeurons();
         jLabel5.setText(""+map[best]);
+        
+        String cadena = "" + map[best]; 
+        try{
+        int n = Integer.parseInt (cadena); 
+        //AudioClip num;
+        InputStream in;
+        AudioStream au;
+        switch(n){
+            case 1:
+                in= new FileInputStream("./1.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            case 2:
+                in= new FileInputStream("./2.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;  
+            case 3:
+                in= new FileInputStream("./3.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            case 4:
+                in= new FileInputStream("./4.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            case 5:
+                in= new FileInputStream("./5.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            case 6:
+                in= new FileInputStream("./6.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            case 7:
+                in= new FileInputStream("./7.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            case 8:
+                in= new FileInputStream("./8.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            case 9:
+                in= new FileInputStream("./9.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            case 0:
+                in= new FileInputStream("./zero.wav");
+                au=new AudioStream(in);
+                AudioPlayer.player.start(au);
+                break;
+            default:
+                System.out.println("No es numero");
+                break;
+        }
+        }catch(Exception e){}
     //final String s=""+map[best];
         
         /*Runnable miRunnable = new Runnable()

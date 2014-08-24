@@ -1,7 +1,17 @@
 
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import javax.swing.DefaultListModel;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 /*
  * To change this license header, choose License Headers in Project Properties.
@@ -13,28 +23,110 @@ import javax.swing.DefaultListModel;
  *
  * @author bryan
  */
-public class Principal extends javax.swing.JFrame {
+public class Principal extends javax.swing.JFrame implements Runnable, NeuralReportable{
 
     /**
      * Creates new form Principal
      */
     Entry entry;
     Sample sample;
+    DefaultListModel letterListModel = new DefaultListModel();
+    Thread trainThread = null;
+    KohonenNetwork net;
+
     public Principal() {
         this.setLayout(new BorderLayout());
         initComponents();
         entry = new Entry();
-        entry.reshape(310,50,200,128);
+        entry.reshape(300,80,200,128);
         this.add(entry);
         
         sample=new Sample(5,7);
         sample.reshape(580,60,65,70);
         entry.setSample(sample);
-        this.add(sample);
+        //this.add(sample);
+         
         
         DefaultListModel letterListModel = new DefaultListModel();
         
     }
+    
+    public void update(int retry,double totalError,double bestError)
+  {
+    if ( (((retry%100)!=0) || (retry==10)) && !net.halt )
+      return;
+
+    if ( net.halt ) {
+      trainThread = null;
+      //jButton4.setText("Begin Training");
+      JOptionPane.showMessageDialog(this,
+                                    "El sistema fué entrenado","Training",
+                                    JOptionPane.PLAIN_MESSAGE);
+    }
+    UpdateStats stats = new UpdateStats();
+    stats._tries = retry;
+    stats._lastError=totalError;
+    stats._bestError=bestError;
+    try {
+      SwingUtilities.invokeAndWait(stats);
+    } catch ( Exception e ) {
+      JOptionPane.showMessageDialog(this,"Error: " + e,"Training",
+                                    JOptionPane.ERROR_MESSAGE);
+    }
+  }
+    
+    public void run()
+  {
+    try {
+      int inputNeuron = 7*5;
+      int outputNeuron = letterListModel.size();
+
+      TrainingSet set = new TrainingSet(inputNeuron,outputNeuron);
+      set.setTrainingSetCount(letterListModel.size());
+
+      for ( int t=0;t<letterListModel.size();t++ ) {
+        int idx=0;
+        SampleData ds = (SampleData)letterListModel.getElementAt(t);
+        for ( int y=0;y<ds.getHeight();y++ ) {
+          for ( int x=0;x<ds.getWidth();x++ ) {
+            set.setInput(t,idx++,ds.getData(x,y)?.5:-.5);
+          }
+        }
+      }
+
+      net = new KohonenNetwork(inputNeuron,outputNeuron,this);
+      net.setTrainingSet(set);
+      net.learn();
+    } catch ( Exception e ) {
+      JOptionPane.showMessageDialog(this,"Error: " + e,
+                                    "Training",
+                                    JOptionPane.ERROR_MESSAGE);
+    }
+
+  }
+    char []mapNeurons()
+  {
+    char map[] = new char[letterListModel.size()];
+    double normfac[] = new double[1];
+    double synth[] = new double[1];
+
+    for ( int i=0;i<map.length;i++ )
+      map[i]='?';
+    for ( int i=0;i<letterListModel.size();i++ ) {
+      double input[] = new double[5*7];
+      int idx=0;
+      SampleData ds = (SampleData)letterListModel.getElementAt(i);
+      for ( int y=0;y<ds.getHeight();y++ ) {
+        for ( int x=0;x<ds.getWidth();x++ ) {
+          input[idx++] = ds.getData(x,y)?.5:-.5;
+        }
+      }
+
+      int best = net.winner ( input , normfac , synth ) ;
+      map[best] = ds.getLetter();
+    }
+    return map;
+  }
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -53,19 +145,25 @@ public class Principal extends javax.swing.JFrame {
         jButton2 = new javax.swing.JButton();
         jButton3 = new javax.swing.JButton();
         jButton4 = new javax.swing.JButton();
+        jTextField1 = new javax.swing.JTextField();
+        jLabel4 = new javax.swing.JLabel();
+        jButton5 = new javax.swing.JButton();
+        jLabel5 = new javax.swing.JLabel();
+        jLabel6 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("Reconocimiento de Patrones");
         setResizable(false);
 
-        jLabel1.setText("Entrenamiento de la neurona");
+        jLabel1.setFont(new java.awt.Font("Tahoma", 1, 16)); // NOI18N
+        jLabel1.setText("Entrenamiento");
 
         jLabel2.setFont(new java.awt.Font("Ubuntu", 1, 18)); // NOI18N
         jLabel2.setText("Reconocimiento del número");
 
         jSeparator1.setOrientation(javax.swing.SwingConstants.VERTICAL);
 
-        jLabel3.setText("Dibuje el número");
+        jLabel3.setText("Dibuje el número:");
 
         jButton1.setText("Añadir");
         jButton1.addActionListener(new java.awt.event.ActionListener() {
@@ -74,7 +172,7 @@ public class Principal extends javax.swing.JFrame {
             }
         });
 
-        jButton2.setText("Reconozer");
+        jButton2.setText("Reconocer");
         jButton2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButton2ActionPerformed(evt);
@@ -82,35 +180,87 @@ public class Principal extends javax.swing.JFrame {
         });
 
         jButton3.setText("Limpiar");
+        jButton3.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton3ActionPerformed(evt);
+            }
+        });
 
-        jButton4.setText("jButton4");
+        jButton4.setText("Entrenar");
+        jButton4.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton4ActionPerformed(evt);
+            }
+        });
+
+        jTextField1.setFont(new java.awt.Font("Tahoma", 0, 18)); // NOI18N
+        jTextField1.setHorizontalAlignment(javax.swing.JTextField.CENTER);
+
+        jLabel4.setText("Ingrese el número a enseñar:");
+
+        jButton5.setText("Cargar");
+        jButton5.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton5ActionPerformed(evt);
+            }
+        });
+
+        jLabel5.setFont(new java.awt.Font("Tahoma", 1, 60)); // NOI18N
+        jLabel5.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+
+        jLabel6.setText("Resultado:");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(59, 59, 59)
-                .addComponent(jLabel1)
-                .addGap(42, 42, 42)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(59, 59, 59)
+                                .addComponent(jLabel1))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addContainerGap()
+                                .addComponent(jLabel4))
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(76, 76, 76)
+                                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(84, 84, 84)
+                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(52, 52, 52))
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addComponent(jButton4)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jButton5, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)))
                 .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(93, 93, 93)
-                        .addComponent(jLabel2))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(26, 26, 26)
-                        .addComponent(jButton1)
-                        .addGap(18, 18, 18)
-                        .addComponent(jButton2)
-                        .addGap(18, 18, 18)
-                        .addComponent(jButton3)
-                        .addGap(18, 18, 18)
-                        .addComponent(jButton4))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(52, 52, 52)
-                        .addComponent(jLabel3)))
-                .addContainerGap(43, Short.MAX_VALUE))
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(93, 93, 93)
+                                .addComponent(jLabel2))
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(52, 52, 52)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                                    .addComponent(jButton2)
+                                    .addComponent(jLabel3))
+                                .addGap(45, 45, 45)
+                                .addComponent(jButton3)))
+                        .addContainerGap(74, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 76, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(36, 36, 36))
+                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                                .addComponent(jLabel6)
+                                .addGap(50, 50, 50))))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -120,15 +270,31 @@ public class Principal extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jLabel1)
                     .addComponent(jLabel2, javax.swing.GroupLayout.Alignment.TRAILING))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jLabel3)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 164, Short.MAX_VALUE)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jButton1)
-                    .addComponent(jButton2)
-                    .addComponent(jButton3)
-                    .addComponent(jButton4))
-                .addGap(23, 23, 23))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabel3)
+                        .addGap(37, 37, 37)
+                        .addComponent(jLabel6)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 77, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 25, Short.MAX_VALUE)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jButton2)
+                            .addComponent(jButton3))
+                        .addGap(23, 23, 23))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(30, 30, 30)
+                        .addComponent(jLabel4)
+                        .addGap(28, 28, 28)
+                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(jButton1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jButton4)
+                            .addComponent(jButton5))
+                        .addGap(21, 21, 21))))
         );
 
         pack();
@@ -136,11 +302,196 @@ public class Principal extends javax.swing.JFrame {
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
         // TODO add your handling code here:
+        
+        int i;
+        String letter=jTextField1.getText();
+    //String letter = JOptionPane.showInputDialog(
+     // "Please enter a letter you would like to assign this sample to.");
+    if ( letter==null )
+      return;
+
+    if ( letter.length()>1 ) {
+      JOptionPane.showMessageDialog(this,
+                                    "Please enter only a single letter.","Error",
+                                    JOptionPane.ERROR_MESSAGE);
+      return;
+    }
+
+    entry.downSample();
+    SampleData sampleData = (SampleData)sample.getData().clone();
+    sampleData.setLetter(letter.charAt(0));
+
+    for ( i=0;i<letterListModel.size();i++ ) {
+      Comparable str = (Comparable)letterListModel.getElementAt(i);
+      if ( str.equals(letter) ) {
+        JOptionPane.showMessageDialog(this,
+                                      "That letter is already defined, delete it first!","Error",
+                                      JOptionPane.ERROR_MESSAGE);
+        return;
+      }
+
+      if ( str.compareTo(sampleData)>0 ) {
+        letterListModel.add(i,sampleData);
+        return;
+      }
+    }
+    letterListModel.add(letterListModel.size(),sampleData);
+    //letters.setSelectedIndex(i);
+    entry.clear();
+    sample.repaint();
+    
+    //SE GUARDA CADA VEZ QUE AGREGA
+    try {
+      OutputStream os;// the actual file stream
+      PrintStream ps;// used to read the file line by line
+
+      os = new FileOutputStream( "./sample.dat",false );
+      ps = new PrintStream(os);
+
+      for ( int j=0;j<letterListModel.size();j++ ) {
+        SampleData ds = (SampleData)letterListModel.elementAt(j);
+        ps.print( ds.getLetter() + ":" );
+        for ( int y=0;y<ds.getHeight();y++ ) {
+          for ( int x=0;x<ds.getWidth();x++ ) {
+            ps.print( ds.getData(x,y)?"1":"0" );
+          }
+        }
+        ps.println("");
+      }
+
+      ps.close();
+      os.close();
+      jButton3ActionPerformed(null);
+      /*JOptionPane.showMessageDialog(this,
+                                    "Saved to 'sample.dat'.",
+                                    "Training",
+                                    JOptionPane.PLAIN_MESSAGE);*/
+
+    } catch ( Exception e ) {
+      JOptionPane.showMessageDialog(this,"Error: " +
+                                    e,"Training",
+                                    JOptionPane.ERROR_MESSAGE);
+    }
+    jTextField1.setText("");
+    
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
         // TODO add your handling code here:
+        if ( net==null ) {
+      JOptionPane.showMessageDialog(this,
+                                    "El sistema necesita ser entrenado primero!","Error",
+                                    JOptionPane.ERROR_MESSAGE);
+      return;
+    }
+    entry.downSample();
+
+    double input[] = new double[5*7];
+    int idx=0;
+    SampleData ds = sample.getData();
+    for ( int y=0;y<ds.getHeight();y++ ) {
+      for ( int x=0;x<ds.getWidth();x++ ) {
+        input[idx++] = ds.getData(x,y)?.5:-.5;
+      }
+    }
+
+    double normfac[] = new double[1];
+    double synth[] = new double[1];
+
+    int best = net.winner ( input , normfac , synth ) ;
+    char map[] = mapNeurons();
+        jLabel5.setText(""+map[best]);
+    //final String s=""+map[best];
+        
+        /*Runnable miRunnable = new Runnable()
+      {
+         public void run()
+         {
+            try
+            {
+               jLabel5.setText(s);
+            }
+            catch (Exception e)
+            {
+               e.printStackTrace();
+            }
+         }
+      };
+      Thread hilo = new Thread (miRunnable);
+      hilo.start();*/
+        
+   
+ 
+    
+    //jLabel5.setVisible(true);
+   /* JOptionPane.showMessageDialog(this,
+                                  "  " + map[best] + "   (Neuron #"
+                                  + best + " fired)","That Letter Is",
+                                  JOptionPane.PLAIN_MESSAGE);*/
+    jButton3ActionPerformed(null);
+        
     }//GEN-LAST:event_jButton2ActionPerformed
+
+    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
+        // TODO add your handling code here:
+        entry.clear();
+        sample.getData().clear();
+        sample.repaint();
+    }//GEN-LAST:event_jButton3ActionPerformed
+
+    private void jButton5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton5ActionPerformed
+        // TODO add your handling code here:
+        try {
+      FileReader f;// the actual file stream
+      BufferedReader r;// used to read the file line by line
+
+      f = new FileReader( new File("./sample.dat") );
+      r = new BufferedReader(f);
+      String line;
+      int i=0;
+
+      letterListModel.clear();
+
+      while ( (line=r.readLine()) !=null ) {
+        SampleData ds =
+          new SampleData(line.charAt(0),5,7);
+        letterListModel.add(i++,ds);
+        int idx=2;
+        for ( int y=0;y<ds.getHeight();y++ ) {
+          for ( int x=0;x<ds.getWidth();x++ ) {
+            ds.setData(x,y,line.charAt(idx++)=='1');
+          }
+        }
+      }
+
+      r.close();
+      f.close();
+      jButton3ActionPerformed(null);
+      JOptionPane.showMessageDialog(this,
+                                    "Base de conocimiento cargada.","Training",
+                                    JOptionPane.PLAIN_MESSAGE);
+
+    } catch ( Exception e ) {
+      JOptionPane.showMessageDialog(this,
+                                    "Error: " + e,"Training",
+                                    JOptionPane.ERROR_MESSAGE);
+    }
+
+  
+    }//GEN-LAST:event_jButton5ActionPerformed
+
+    private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
+        // TODO add your handling code here:
+        if ( trainThread==null ) {
+            //jButton4.setText("Stop Training");
+            //jButton4.repaint();
+            trainThread = new Thread(this);
+            trainThread.start();
+        } else {
+            net.halt=true;
+    }
+        
+    }//GEN-LAST:event_jButton4ActionPerformed
 
     /**
      * @param args the command line arguments
@@ -182,9 +533,29 @@ public class Principal extends javax.swing.JFrame {
     private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
     private javax.swing.JButton jButton4;
+    private javax.swing.JButton jButton5;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
+    private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel6;
     private javax.swing.JSeparator jSeparator1;
+    private javax.swing.JTextField jTextField1;
     // End of variables declaration//GEN-END:variables
+
+     public class UpdateStats implements Runnable {
+    long _tries;
+    double _lastError;
+    double _bestError;
+    
+
+    public void run()
+    {
+       
+      /*tries.setText(""+_tries);
+      lastError.setText(""+_lastError);
+      bestError.setText(""+_bestError);*/
+    }
+  }
 }

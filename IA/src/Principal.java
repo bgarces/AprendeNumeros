@@ -8,11 +8,13 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.URL;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
 import javax.swing.DefaultListModel;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-
 /*
  * To change this license header, choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
@@ -33,6 +35,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
     DefaultListModel letterListModel = new DefaultListModel();
     Thread trainThread = null;
     KohonenNetwork net;
+    private Clip clip;
 
     public Principal() {
         this.setLayout(new BorderLayout());
@@ -40,17 +43,17 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         entry = new Entry();
         entry.reshape(300,80,200,128);
         this.add(entry);
-        
+
         sample=new Sample(5,7);
         sample.reshape(580,60,65,70);
         entry.setSample(sample);
         //this.add(sample);
-         
-        
+
+
         DefaultListModel letterListModel = new DefaultListModel();
-        
+
     }
-    
+
     public void update(int retry,double totalError,double bestError)
   {
     if ( (((retry%100)!=0) || (retry==10)) && !net.halt )
@@ -74,7 +77,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
                                     JOptionPane.ERROR_MESSAGE);
     }
   }
-    
+
     public void run()
   {
     try {
@@ -155,7 +158,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         setTitle("Reconocimiento de Patrones");
         setResizable(false);
 
-        jLabel1.setFont(new java.awt.Font("Tahoma", 1, 16)); // NOI18N
+        jLabel1.setFont(new java.awt.Font("Ubuntu", 1, 18)); // NOI18N
         jLabel1.setText("Entrenamiento");
 
         jLabel2.setFont(new java.awt.Font("Ubuntu", 1, 18)); // NOI18N
@@ -163,8 +166,10 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
 
         jSeparator1.setOrientation(javax.swing.SwingConstants.VERTICAL);
 
+        jLabel3.setFont(new java.awt.Font("Ubuntu Light", 1, 15)); // NOI18N
         jLabel3.setText("Dibuje el número:");
 
+        jButton1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/iconos/add.png"))); // NOI18N
         jButton1.setText("Añadir");
         jButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -172,6 +177,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
             }
         });
 
+        jButton2.setIcon(new javax.swing.ImageIcon(getClass().getResource("/iconos/bu.png"))); // NOI18N
         jButton2.setText("Reconocer");
         jButton2.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -179,6 +185,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
             }
         });
 
+        jButton3.setIcon(new javax.swing.ImageIcon(getClass().getResource("/iconos/g6184.png"))); // NOI18N
         jButton3.setText("Limpiar");
         jButton3.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -186,6 +193,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
             }
         });
 
+        jButton4.setIcon(new javax.swing.ImageIcon(getClass().getResource("/iconos/entrenar.png"))); // NOI18N
         jButton4.setText("Entrenar");
         jButton4.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -195,9 +203,16 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
 
         jTextField1.setFont(new java.awt.Font("Tahoma", 0, 18)); // NOI18N
         jTextField1.setHorizontalAlignment(javax.swing.JTextField.CENTER);
+        jTextField1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jTextField1ActionPerformed(evt);
+            }
+        });
 
-        jLabel4.setText("Ingrese el número a enseñar:");
+        jLabel4.setFont(new java.awt.Font("Ubuntu Light", 1, 15)); // NOI18N
+        jLabel4.setText("Ingrese el número a enseñar");
 
+        jButton5.setIcon(new javax.swing.ImageIcon(getClass().getResource("/iconos/cargar.png"))); // NOI18N
         jButton5.setText("Cargar");
         jButton5.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -208,6 +223,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         jLabel5.setFont(new java.awt.Font("Tahoma", 1, 60)); // NOI18N
         jLabel5.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
 
+        jLabel6.setFont(new java.awt.Font("Ubuntu Light", 1, 15)); // NOI18N
         jLabel6.setText("Resultado:");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -215,28 +231,30 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jLabel4)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(jButton4)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(jButton5, javax.swing.GroupLayout.PREFERRED_SIZE, 104, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(40, 40, 40))))
+                    .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(layout.createSequentialGroup()
                                 .addGap(59, 59, 59)
                                 .addComponent(jLabel1))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                                .addContainerGap()
-                                .addComponent(jLabel4))
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(94, 94, 94)
+                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(layout.createSequentialGroup()
                                 .addGap(76, 76, 76)
-                                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(84, 84, 84)
-                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 57, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(52, 52, 52))
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                        .addGap(18, 18, 18)
-                        .addComponent(jButton4)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(jButton5, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)))
+                                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 99, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addGap(96, 96, 96)))
                 .addComponent(jSeparator1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
@@ -245,13 +263,11 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
                                 .addGap(93, 93, 93)
                                 .addComponent(jLabel2))
                             .addGroup(layout.createSequentialGroup()
-                                .addGap(52, 52, 52)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(jButton2)
-                                    .addComponent(jLabel3))
-                                .addGap(45, 45, 45)
+                                .addGap(6, 6, 6)
+                                .addComponent(jButton2)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(jButton3)))
-                        .addContainerGap(74, Short.MAX_VALUE))
+                        .addContainerGap(54, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -260,7 +276,11 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
                                 .addGap(36, 36, 36))
                             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                                 .addComponent(jLabel6)
-                                .addGap(50, 50, 50))))))
+                                .addGap(50, 50, 50))))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(9, 9, 9)
+                        .addComponent(jLabel3)
+                        .addGap(0, 0, Short.MAX_VALUE))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -272,23 +292,23 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
                     .addComponent(jLabel2, javax.swing.GroupLayout.Alignment.TRAILING))
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGap(18, 18, 18)
                         .addComponent(jLabel3)
-                        .addGap(37, 37, 37)
+                        .addGap(31, 31, 31)
                         .addComponent(jLabel6)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 77, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 25, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 17, Short.MAX_VALUE)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jButton2)
                             .addComponent(jButton3))
                         .addGap(23, 23, 23))
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(30, 30, 30)
+                        .addGap(12, 12, 12)
                         .addComponent(jLabel4)
-                        .addGap(28, 28, 28)
+                        .addGap(30, 30, 30)
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jButton1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -302,7 +322,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
 
     private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
         // TODO add your handling code here:
-        
+
         int i;
         String letter=jTextField1.getText();
     //String letter = JOptionPane.showInputDialog(
@@ -339,7 +359,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
     //letters.setSelectedIndex(i);
     entry.clear();
     sample.repaint();
-    
+
     //SE GUARDA CADA VEZ QUE AGREGA
     try {
       OutputStream os;// the actual file stream
@@ -373,7 +393,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
                                     JOptionPane.ERROR_MESSAGE);
     }
     jTextField1.setText("");
-    
+
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
@@ -400,9 +420,11 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
 
     int best = net.winner ( input , normfac , synth ) ;
     char map[] = mapNeurons();
-        jLabel5.setText(""+map[best]);
+    jLabel5.setText(""+map[best]);
+    String numero_voz= Character.toString(map[best]);
+    sonidoNumero(numero_voz);
     //final String s=""+map[best];
-        
+
         /*Runnable miRunnable = new Runnable()
       {
          public void run()
@@ -419,19 +441,28 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
       };
       Thread hilo = new Thread (miRunnable);
       hilo.start();*/
-        
-   
- 
-    
+
+
+
+
     //jLabel5.setVisible(true);
    /* JOptionPane.showMessageDialog(this,
                                   "  " + map[best] + "   (Neuron #"
                                   + best + " fired)","That Letter Is",
                                   JOptionPane.PLAIN_MESSAGE);*/
     jButton3ActionPerformed(null);
-        
-    }//GEN-LAST:event_jButton2ActionPerformed
 
+    }//GEN-LAST:event_jButton2ActionPerformed
+    private void sonidoNumero(String numero){
+         try{
+            clip=AudioSystem.getClip();
+            clip.open(AudioSystem.getAudioInputStream( getClass().getResourceAsStream("sound/" +  numero +".wav" ) ) );
+            clip.start();
+            }catch(Exception ex){
+                 System.err.println( ex.getMessage() );
+             }
+
+    }
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
         // TODO add your handling code here:
         entry.clear();
@@ -477,7 +508,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
                                     JOptionPane.ERROR_MESSAGE);
     }
 
-  
+
     }//GEN-LAST:event_jButton5ActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
@@ -490,8 +521,12 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         } else {
             net.halt=true;
     }
-        
+
     }//GEN-LAST:event_jButton4ActionPerformed
+
+    private void jTextField1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTextField1ActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jTextField1ActionPerformed
 
     /**
      * @param args the command line arguments
@@ -500,7 +535,7 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         /* Set the Nimbus look and feel */
         //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
         /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html
          */
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
@@ -548,11 +583,11 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
     long _tries;
     double _lastError;
     double _bestError;
-    
+
 
     public void run()
     {
-       
+
       /*tries.setText(""+_tries);
       lastError.setText(""+_lastError);
       bestError.setText(""+_bestError);*/

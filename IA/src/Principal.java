@@ -1,6 +1,7 @@
 
 import java.applet.AudioClip;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
@@ -28,7 +29,7 @@ import sun.audio.*;
 
 /**
  *
- * @author bryan
+ * @author Bryan Garcés, Andrés Romero, Kevin Silva, Wilson
  */
 public class Principal extends javax.swing.JFrame implements Runnable, NeuralReportable{
 
@@ -52,87 +53,68 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         sample=new Sample(5,7);
         sample.reshape(580,60,65,70);
         entry.setSample(sample);
-        //this.add(sample);
-         
+    
+    }
+    
+    public void update(int retry,double totalError,double bestError){
         
+        if((((retry%100)!=0) || (retry==10)) && !net.halt)
+            return;
+
+        if(net.halt){
+            trainThread=null;      
+            JOptionPane.showMessageDialog(this,"El sistema fué entrenado","Training",JOptionPane.PLAIN_MESSAGE);
+        }
     }
     
-    public void update(int retry,double totalError,double bestError)
-  {
-    if ( (((retry%100)!=0) || (retry==10)) && !net.halt )
-      return;
+    public void run(){
+        try{
+            int inputNeuron=7*5;
+            int outputNeuron=letterListModel.size();
 
-    if ( net.halt ) {
-      trainThread = null;
-      //jButton4.setText("Begin Training");
-      JOptionPane.showMessageDialog(this,
-                                    "El sistema fué entrenado","Training",
-                                    JOptionPane.PLAIN_MESSAGE);
-    }
-    UpdateStats stats = new UpdateStats();
-    stats._tries = retry;
-    stats._lastError=totalError;
-    stats._bestError=bestError;
-    try {
-      SwingUtilities.invokeAndWait(stats);
-    } catch ( Exception e ) {
-      JOptionPane.showMessageDialog(this,"Error: " + e,"Training",
-                                    JOptionPane.ERROR_MESSAGE);
-    }
-  }
-    
-    public void run()
-  {
-    try {
-      int inputNeuron = 7*5;
-      int outputNeuron = letterListModel.size();
+            TrainingSet set=new TrainingSet(inputNeuron,outputNeuron);
+            set.setTrainingSetCount(letterListModel.size());
 
-      TrainingSet set = new TrainingSet(inputNeuron,outputNeuron);
-      set.setTrainingSetCount(letterListModel.size());
+            for(int t=0;t<letterListModel.size();t++){
+                int idx=0;
+                SampleData ds=(SampleData)letterListModel.getElementAt(t);
+                for(int y=0;y<ds.getHeight();y++){
+                    for(int x=0;x<ds.getWidth();x++){
+                        set.setInput(t,idx++,ds.getData(x,y)?.5:-.5);
+                    }
+                }
+            }
 
-      for ( int t=0;t<letterListModel.size();t++ ) {
-        int idx=0;
-        SampleData ds = (SampleData)letterListModel.getElementAt(t);
-        for ( int y=0;y<ds.getHeight();y++ ) {
-          for ( int x=0;x<ds.getWidth();x++ ) {
-            set.setInput(t,idx++,ds.getData(x,y)?.5:-.5);
-          }
+            net=new KohonenNetwork(inputNeuron,outputNeuron,this);
+            net.setTrainingSet(set);
+            net.learn();
+        }catch(Exception e){
+            JOptionPane.showMessageDialog(this,"Error: "+e,"Training",JOptionPane.ERROR_MESSAGE);
         }
-      }
 
-      net = new KohonenNetwork(inputNeuron,outputNeuron,this);
-      net.setTrainingSet(set);
-      net.learn();
-    } catch ( Exception e ) {
-      JOptionPane.showMessageDialog(this,"Error: " + e,
-                                    "Training",
-                                    JOptionPane.ERROR_MESSAGE);
     }
+    char []mapNeurons(){
+        char map[]=new char[letterListModel.size()];
+        double normfac[]=new double[1];
+        double synth[]=new double[1];
 
-  }
-    char []mapNeurons()
-  {
-    char map[] = new char[letterListModel.size()];
-    double normfac[] = new double[1];
-    double synth[] = new double[1];
-
-    for ( int i=0;i<map.length;i++ )
-      map[i]='?';
-    for ( int i=0;i<letterListModel.size();i++ ) {
-      double input[] = new double[5*7];
-      int idx=0;
-      SampleData ds = (SampleData)letterListModel.getElementAt(i);
-      for ( int y=0;y<ds.getHeight();y++ ) {
-        for ( int x=0;x<ds.getWidth();x++ ) {
-          input[idx++] = ds.getData(x,y)?.5:-.5;
+        for(int i=0;i<map.length;i++)
+            map[i]='?';
+        for(int i=0;i<letterListModel.size();i++){
+            double input[]=new double[5*7];
+            int idx=0;
+            SampleData ds = (SampleData)letterListModel.getElementAt(i);
+            for(int y=0;y<ds.getHeight();y++){
+                for(int x=0;x<ds.getWidth();x++){
+                    input[idx++]=ds.getData(x,y)?.5:-.5;
+                }
+            }
+            
+            int best=net.winner(input,normfac,synth);
+            map[best]=ds.getLetter();
         }
-      }
-
-      int best = net.winner ( input , normfac , synth ) ;
-      map[best] = ds.getLetter();
+        return map;
     }
-    return map;
-  }
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -321,149 +303,110 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
         
         int i;
         String letter=jTextField1.getText();
-    //String letter = JOptionPane.showInputDialog(
-     // "Please enter a letter you would like to assign this sample to.");
-    if ( letter==null )
-      return;
+        if(letter==null)
+            return;
 
-    if ( letter.length()>1 ) {
-      JOptionPane.showMessageDialog(this,
-                                    "Please enter only a single letter.","Error",
-                                    JOptionPane.ERROR_MESSAGE);
-      return;
-    }
+        if(letter.length()>1){
+            JOptionPane.showMessageDialog(this,"Ingresar un solo caracter.","Error",JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
-    entry.downSample();
-    SampleData sampleData = (SampleData)sample.getData().clone();
-    sampleData.setLetter(letter.charAt(0));
+        entry.downSample();
+        SampleData sampleData=(SampleData)sample.getData().clone();
+        sampleData.setLetter(letter.charAt(0));
 
-    for ( i=0;i<letterListModel.size();i++ ) {
-      Comparable str = (Comparable)letterListModel.getElementAt(i);
-      if ( str.equals(letter) ) {
-        JOptionPane.showMessageDialog(this,
-                                      "That letter is already defined, delete it first!","Error",
-                                      JOptionPane.ERROR_MESSAGE);
-        
-        return;
-      }
+        for(i=0;i<letterListModel.size();i++){
+            Comparable str=(Comparable)letterListModel.getElementAt(i);
+            if(str.equals(letter)){
+                JOptionPane.showMessageDialog(this,"El caracter ya esta definido","Error",JOptionPane.ERROR_MESSAGE);
+                return;
+            }
 
-      if ( str.compareTo(sampleData)>1 ) {
-        letterListModel.add(i,sampleData);
+            if(str.compareTo(sampleData)>1){
+                letterListModel.add(i,sampleData);
+                entry.clear();
+                sample.repaint();
+                return;
+            }
+        }
+        letterListModel.add(letterListModel.size(),sampleData);
+   
         entry.clear();
         sample.repaint();
-        return;
-      }
-    }
-    letterListModel.add(letterListModel.size(),sampleData);
-    //letters.setSelectedIndex(i);
-    entry.clear();
-    sample.repaint();
     
     //SE GUARDA CADA VEZ QUE AGREGA
-    try {
-      OutputStream os;// the actual file stream
-      PrintStream ps;// used to read the file line by line
+        try{
+            OutputStream os;
+            PrintStream ps;
 
-      os = new FileOutputStream( "./sample.dat",false );
-      ps = new PrintStream(os);
+            os=new FileOutputStream("./sample.dat",false);
+            ps=new PrintStream(os);
 
-      for ( int j=0;j<letterListModel.size();j++ ) {
-        SampleData ds = (SampleData)letterListModel.elementAt(j);
-        ps.print( ds.getLetter() + ":" );
-        for ( int y=0;y<ds.getHeight();y++ ) {
-          for ( int x=0;x<ds.getWidth();x++ ) {
-            ps.print( ds.getData(x,y)?"1":"0" );
-          }
+            for(int j=0;j<letterListModel.size();j++){
+                SampleData ds = (SampleData)letterListModel.elementAt(j);
+                ps.print(ds.getLetter()+":");
+                for(int y=0;y<ds.getHeight();y++){
+                    for(int x=0;x<ds.getWidth();x++){
+                        ps.print(ds.getData(x,y)?"1":"0");
+                    }
+                }
+                ps.println("");
+            }
+
+            ps.close();
+            os.close();
+            jButton3ActionPerformed(null);      
+        }catch(Exception e){
+            JOptionPane.showMessageDialog(this,"Error: "+e,"Training",JOptionPane.ERROR_MESSAGE);
         }
-        ps.println("");
-      }
-
-      ps.close();
-      os.close();
-      jButton3ActionPerformed(null);
-      /*JOptionPane.showMessageDialog(this,
-                                    "Saved to 'sample.dat'.",
-                                    "Training",
-                                    JOptionPane.PLAIN_MESSAGE);*/
-
-    } catch ( Exception e ) {
-      JOptionPane.showMessageDialog(this,"Error: " +
-                                    e,"Training",
-                                    JOptionPane.ERROR_MESSAGE);
-    }
-    jTextField1.setText("");
+        jTextField1.setText("");
         
     
     }//GEN-LAST:event_jButton1ActionPerformed
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
         // TODO add your handling code here:
-        if ( net==null ) {
-      JOptionPane.showMessageDialog(this,
-                                    "El sistema necesita ser entrenado primero!","Error",
-                                    JOptionPane.ERROR_MESSAGE);
-      return;
-    }
-    entry.downSample();
+        if(net==null){
+            JOptionPane.showMessageDialog(this,"El sistema necesita ser entrenado primero!","Error",JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        entry.downSample();
 
-    double input[] = new double[5*7];
-    int idx=0;
-    SampleData ds = sample.getData();
-    for ( int y=0;y<ds.getHeight();y++ ) {
-      for ( int x=0;x<ds.getWidth();x++ ) {
-        input[idx++] = ds.getData(x,y)?.5:-.5;
-      }
-    }
-
-    double normfac[] = new double[1];
-    double synth[] = new double[1];
-
-    int best = net.winner ( input , normfac , synth ) ;
-    char map[] = mapNeurons();
-    jLabel5.setText(""+map[best]);
-    String numero_voz= Character.toString(map[best]);
-    sonidoNumero(numero_voz);
-
-        
-    //final String s=""+map[best];
-        
-        /*Runnable miRunnable = new Runnable()
-      {
-         public void run()
-         {
-            try
-            {
-               jLabel5.setText(s);
-            }
-            catch (Exception e)
-            {
-               e.printStackTrace();
-            }
-         }
-      };
-      Thread hilo = new Thread (miRunnable);
-      hilo.start();*/
-        
-   
- 
+        double input[]=new double[5*7];
+        int idx=0;
+        SampleData ds=sample.getData();
     
-    //jLabel5.setVisible(true);
-   /* JOptionPane.showMessageDialog(this,
-                                  "  " + map[best] + "   (Neuron #"
-                                  + best + " fired)","That Letter Is",
-                                  JOptionPane.PLAIN_MESSAGE);*/
-    jButton3ActionPerformed(null);
+        for(int y=0;y<ds.getHeight();y++){
+            for(int x=0;x<ds.getWidth();x++){
+                input[idx++]=ds.getData(x,y)?.5:-.5;
+            }
+        }
+        if(entry.entryGraphics.getColor().equals(Color.white)){
+            JOptionPane.showMessageDialog(this,"No ha dibujado.","Drawing",JOptionPane.PLAIN_MESSAGE);
+            return;
+        }
+
+        double normfac[]=new double[1];
+        double synth[]=new double[1];
+
+        int best=net.winner(input,normfac,synth) ;
+        char map[]=mapNeurons();
+        jLabel5.setText(""+map[best]); //Cambia el label al número reconocido
+        
+        String numero_voz=Character.toString(map[best]);
+        sonidoNumero(numero_voz);
+
+        jButton3ActionPerformed(null);
         
     }//GEN-LAST:event_jButton2ActionPerformed
     private void sonidoNumero(String numero){
-         try{
+        try{
             clip=AudioSystem.getClip();
-            clip.open(AudioSystem.getAudioInputStream( getClass().getResourceAsStream("sound/" +  numero +".wav" ) ) );
+            clip.open(AudioSystem.getAudioInputStream(getClass().getResourceAsStream("sound/"+numero+".wav")));
             clip.start();
-            }catch(Exception ex){
-                 System.err.println( ex.getMessage() );
-             }
-
+        }catch(Exception ex){
+            System.err.println(ex.getMessage());
+        }
     }
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
         // TODO add your handling code here:
@@ -474,56 +417,46 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
 
     private void jButton5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton5ActionPerformed
         // TODO add your handling code here:
-        try {
-      FileReader f;// the actual file stream
-      BufferedReader r;// used to read the file line by line
+        try{
+            FileReader f;// the actual file stream
+            BufferedReader r;// used to read the file line by line
 
-      f = new FileReader( new File("./sample.dat") );
-      r = new BufferedReader(f);
-      String line;
-      int i=0;
+            f=new FileReader(new File("./sample.dat"));
+            r=new BufferedReader(f);
+            String line;
+            int i=0;
 
-      letterListModel.clear();
+            letterListModel.clear();
 
-      while ( (line=r.readLine()) !=null ) {
-        SampleData ds =
-          new SampleData(line.charAt(0),5,7);
-        letterListModel.add(i++,ds);
-        int idx=2;
-        for ( int y=0;y<ds.getHeight();y++ ) {
-          for ( int x=0;x<ds.getWidth();x++ ) {
-            ds.setData(x,y,line.charAt(idx++)=='1');
-          }
+            while((line=r.readLine())!=null){
+                SampleData ds=new SampleData(line.charAt(0),5,7);
+                letterListModel.add(i++,ds);
+                int idx=2;
+                for(int y=0;y<ds.getHeight();y++){
+                    for(int x=0;x<ds.getWidth();x++){
+                        ds.setData(x,y,line.charAt(idx++)=='1');
+                    }
+                }
+            }
+
+            r.close();
+            f.close();
+            jButton3ActionPerformed(null);
+            JOptionPane.showMessageDialog(this,"Base de conocimiento cargada.","Training",JOptionPane.PLAIN_MESSAGE);
+
+        }catch(Exception e){
+            JOptionPane.showMessageDialog(this,"Error: " + e,"Training",JOptionPane.ERROR_MESSAGE);
         }
-      }
-
-      r.close();
-      f.close();
-      jButton3ActionPerformed(null);
-      JOptionPane.showMessageDialog(this,
-                                    "Base de conocimiento cargada.","Training",
-                                    JOptionPane.PLAIN_MESSAGE);
-
-    } catch ( Exception e ) {
-      JOptionPane.showMessageDialog(this,
-                                    "Error: " + e,"Training",
-                                    JOptionPane.ERROR_MESSAGE);
-    }
-
-  
     }//GEN-LAST:event_jButton5ActionPerformed
 
     private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
         // TODO add your handling code here:
-        if ( trainThread==null ) {
-            //jButton4.setText("Stop Training");
-            //jButton4.repaint();
-            trainThread = new Thread(this);
+        if(trainThread==null){         
+            trainThread=new Thread(this);
             trainThread.start();
-        } else {
+        }else{
             net.halt=true;
-    }
-        
+        }       
     }//GEN-LAST:event_jButton4ActionPerformed
 
     /**
@@ -576,19 +509,4 @@ public class Principal extends javax.swing.JFrame implements Runnable, NeuralRep
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JTextField jTextField1;
     // End of variables declaration//GEN-END:variables
-
-     public class UpdateStats implements Runnable {
-    long _tries;
-    double _lastError;
-    double _bestError;
-    
-
-    public void run()
-    {
-       
-      /*tries.setText(""+_tries);
-      lastError.setText(""+_lastError);
-      bestError.setText(""+_bestError);*/
-    }
-  }
 }
